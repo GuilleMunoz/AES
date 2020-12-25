@@ -47,3 +47,6 @@ aes.inv_cipher_file('el_quijote') # Decrypt
 ```
 When encrypting a file, if number of bytes in the file is not a multiple of 16, it adds (16 - nbytes mod 16) ASCII character 0 (<NULL>) at the end of the file.
 
+## Performance
+
+It manages to encrypt the first part of *Don Quixote* (more than one million bytes) in just 0.094 seconds and decrypts it in 0.65. This difference is due to the fact that InvMixColumns is much slower than MixColumns.
