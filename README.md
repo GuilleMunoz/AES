@@ -41,11 +41,11 @@ inv_cipher_text = aes.inv_cipher(cipher_text) # Decrypt
 from AES import AES
 
 aes = AES(256, key_256)
-aes.cipher_file('el_quijote') # Encrypt
+aes.process_file('el_quijote.txt', 'cipher.txt') # Encrypt
 
-aes.inv_cipher_file('el_quijote') # Decrypt
+aes.process_file('cipher.txt', 'invcipher.txt', cipher=False) # Decrypt
 ```
-When encrypting a file, if number of bytes in the file is not a multiple of 16, it adds (16 - nbytes mod 16) ASCII character 0 (<NULL>) at the end of the file.
+When encrypting a file, if number of bytes in the file is not a multiple of 16, it adds 0x80 and (16 - nbytes mod 16 - 1) ASCII character 0 (<NULL>) at the end of the file.
 
 ## Performance
 
