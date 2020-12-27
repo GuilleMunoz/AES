@@ -344,6 +344,7 @@ cdef class AES:
 
         fp_w = fopen(fname_w, "w")
         if not fp_w:
+            fclose(fp_r)
             print 'ERROR: Something went wrong when opening the writing file'
             return -1
 
@@ -359,7 +360,12 @@ cdef class AES:
                     chunk[i*16 + j] = temp[j]
             if size%16 != 0:
                 for j in range(16):
-                    temp[j] = chunk[size//16 * 16 + j] if j < size%16 else 0
+                    if j < size%16:
+                        temp[j] = chunk[size//16 * 16 + j]
+                    elif j == size%16:
+                        temp[j] = 0x80
+                    else:
+                        temp[j] = 0x00
                 f(self, temp)
                 for j in range(16):
                     chunk[size//16 * 16 + j] = temp[j]
