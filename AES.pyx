@@ -266,6 +266,15 @@ cdef class AES:
         self.add_round_key(state, self.nr)
 
     def cipher(self, state):
+        """
+        Encrypts a given state
+        Args:
+            state (list(bytes (int))): State to encrypt. It must have at leats 16 elements.
+
+        Returns:
+            list(bytes (int))
+
+        """
         cdef unsigned char[16] state_
         for i in range(16):
             state_[i] = state[i]
@@ -295,6 +304,14 @@ cdef class AES:
         self.add_round_key(state, 0)
 
     def inv_cipher(self, state):
+        """
+        Decrypts a given state
+        Args:
+            state (list(bytes)): Ciphered state to decrypt
+
+        Returns:
+            list(bytes (int))
+        """
         cdef unsigned char[16] state_
         for i in range(16):
             state_[i] = state[i]
@@ -303,76 +320,77 @@ cdef class AES:
         return [state_[i] for i in range(16)]
 
 
-    cdef void process_file_(self, void (*f)(AES, unsigned char*),char* fname_r, char* fname_w):
+    cdef int process_file_(self, void (*f)(AES, unsigned char*),char* fname_r, char* fname_w):
+        """
+        Process a file (encrypts or decrypts a file)
+        Args:
+            f: processing function 
+            fname_r: name of the reading file 
+            fname_w: name of the writing file
+
+        Returns:
+            (int): 1 on sucess and -1 on failure i.e. opening a file
+        """
         cdef FILE *fp_r
         cdef FILE *fp_w
-        cdef unsigned char[1024] chunk
+        cdef unsigned char[1025] chunk
         cdef unsigned char[16] temp
         cdef int size, i, j
 
-        fp_r = fopen(fname_r, "rb")
+        fp_r = fopen(fname_r, "r")
+        if not fp_r:
+            print 'ERROR: Something went wrong when opening the reading file'
+            return -1
+
         fp_w = fopen(fname_w, "w")
+        if not fp_w:
+            print 'ERROR: Something went wrong when opening the writing file'
+            return -1
 
-        if fp_r:
-            while True:
-                size = fread(&chunk, 1, 1024, fp_r)
-                if size <= 0:
-                    break
-                for i in range(size//16):
-                    for j in range(16):
-                        temp[j] = chunk[i*16 + j]
-                    f(self, temp)
-                    for j in range(16):
-                        chunk[i*16 + j] = temp[j]
-                if size%16:
-                    for j in range(16):
-                        temp[j] = chunk[size//16 * 16 + j] if j < size%16 else 0
-                    f(self, temp)
-                    for j in range(16):
-                        chunk[size//16 * 16 + j] = temp[j]
-                    size += 16 - size%16
+        while True:
+            size = fread(chunk, 1, 1024, fp_r)
+            if size <= 0:
+                break
+            for i in range(size//16):
+                for j in range(16):
+                    temp[j] = chunk[i*16 + j]
+                f(self, temp)
+                for j in range(16):
+                    chunk[i*16 + j] = temp[j]
+            if size%16 != 0:
+                for j in range(16):
+                    temp[j] = chunk[size//16 * 16 + j] if j < size%16 else 0
+                f(self, temp)
+                for j in range(16):
+                    chunk[size//16 * 16 + j] = temp[j]
+                size += 16 - size%16
+            fwrite(chunk, 1, size, fp_w)
+        fclose(fp_r)
+        fclose(fp_w)
 
-                fwrite(chunk, 1, size, fp_w)
+        return 1
 
-            fclose(fp_r)
-            fclose(fp_w)
 
-    def cipher_file(self, fname):
+    def process_file(self, fread, fwrite, cipher=True):
         """
-        Encrypts a file. the result is stored in fname_cipher
+        Process a file (encrypts it or decrypts it) and writes the result in an other one
         Args:
-            fname (str):
+            fread (str): file to process
+            fwrite (str): destination
+            cipher (bool): if True it encrypts the file else it decrypts it
         """
-        cdef char *fname_
-        cdef char *fcipher
+        cdef char *fread_
+        cdef char *fwrite_
 
-        fname_ = <char *> malloc(len(fname))
-        fcipher = <char *> malloc(len(fname) + 7)
+        fread_ = <char *> malloc(len(fread))
+        fwrite_ = <char *> malloc(len(fwrite))
 
-        for i in range(len(fname)):
-            fname_[i] = ord(fname[i])
-            fcipher[i] = fname_[i]
-        for i, c in enumerate('_cipher'):
-            fcipher[i + len(fname)] = ord(c)
+        for i,c in enumerate(fread):
+            fread_[i] = ord(c)
+        for i,c in enumerate(fwrite):
+            fwrite_[i] = ord(c)
 
-        self.process_file_(self.cipher_, fname_, fcipher)
-
-    def inv_cipher_file(self, fname):
-        cdef char *fcipher
-        cdef char *finvcipher
-
-        fcipher = <char *> malloc(len(fname) + 7)
-        finvcipher = <char *> malloc(len(fname) + 11)
-
-        for i in range(len(fname)):
-            fcipher[i] = ord(fname[i])
-            finvcipher[i] = fcipher[i]
-        for i, c in enumerate('_cipher'):
-            fcipher[i + len(fname)] = ord(c)
-        for i, c in enumerate('_invcipher'):
-            finvcipher[i + len(fname)] = ord(c)
-        self.process_file_(self.inv_cipher_, fcipher, finvcipher)
-
-
-
-
+        if cipher:
+            return self.process_file_(self.cipher_, fread_, fwrite_)
+        else:
+            return self.process_file_(self.inv_cipher_, fread_, fwrite_)
