@@ -6,7 +6,7 @@ cdef class AES:
     cdef readonly char[256] s_box
     cdef readonly char[256] inv_s_box
     cdef readonly char[24] rcon
-    cdef unsigned char *key_shedule
+    cdef unsigned char *key_schedule
     cdef int nk, nr
 
     def __init__(self, t, key_):
@@ -58,11 +58,8 @@ cdef class AES:
 
         for i in range(len(key_)):
             key[i] = key_[i]
-        self.key_shedule = <unsigned char *> malloc((self.nr + 1)*16 + 1)
+        self.key_schedule = <unsigned char *> malloc((self.nr + 1)*16 + 1)
         self.key_expansion(key)
-
-    def __repr__(self):
-        return str([self.key_shedule[i] for i in range(100)])
 
     cdef void key_expansion(self, unsigned char *key):
 
@@ -70,7 +67,7 @@ cdef class AES:
         cdef unsigned char temp[4]
 
         for i in range(4 * self.nk):
-            self.key_shedule[i] = key[i]
+            self.key_schedule[i] = key[i]
         for j in range(4):
             temp[j] =  key[4*self.nk - 4 + j]
 
@@ -83,8 +80,8 @@ cdef class AES:
                 self.sub_bytes(4, temp)
 
             for j in range(4):
-                self.key_shedule[4*i + j] = self.key_shedule[4*(i-self.nk) + j] ^ temp[j]
-                temp[j] = self.key_shedule[4*i + j]
+                self.key_schedule[4*i + j] = self.key_schedule[4*(i-self.nk) + j] ^ temp[j]
+                temp[j] = self.key_schedule[4*i + j]
 
     cdef void add_round_key(self, unsigned char *state, int round_):
         """
@@ -95,7 +92,7 @@ cdef class AES:
         """
         cdef int i
         for i in range(16):
-            state[i] ^= self.key_shedule[round_*16 + i]
+            state[i] ^= self.key_schedule[round_*16 + i]
 
 
 
@@ -282,7 +279,6 @@ cdef class AES:
         self.cipher_(state_)
         return [state_[i] for i in range(16)]
 
-
     cdef void inv_cipher_(self, unsigned char *state):
         """
         Inverse cipher a given state
@@ -359,21 +355,19 @@ cdef class AES:
                 for j in range(16):
                     chunk[i*16 + j] = temp[j]
             if size%16 != 0:
-                for j in range(16):
-                    if j < size%16:
-                        temp[j] = chunk[size//16 * 16 + j]
-                    elif j == size%16:
-                        temp[j] = 0x80
-                    else:
-                        temp[j] = 0x00
+                for j in range(size%16):
+                    temp[j] = chunk[size//16 * 16 + j]
+                temp[size%16] = 0x80
+                for j in range(size%16 + 1, 16):
+                    temp[j] = 0x00
                 f(self, temp)
                 for j in range(16):
                     chunk[size//16 * 16 + j] = temp[j]
                 size += 16 - size%16
             fwrite(chunk, 1, size, fp_w)
+
         fclose(fp_r)
         fclose(fp_w)
-
         return 1
 
 
