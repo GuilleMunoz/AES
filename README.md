@@ -1,5 +1,5 @@
 # AES
-Cython implementation of the Advanced Encryption Standard (Rijndael).
+Pure Cython implementation of the Advanced Encryption Standard (Rijndael).
 
 ## Description
 
